@@ -198,6 +198,72 @@
       box-shadow: 0 2px 4px rgba(15, 23, 42, 0.15) inset;
       pointer-events: none;
     }
+
+    .popup-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.35);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 50;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+
+    .popup-overlay.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .popup {
+      background: #ffffff;
+      border-radius: 18px;
+      padding: 20px 24px 18px;
+      min-width: 260px;
+      max-width: 80vw;
+      text-align: center;
+      box-shadow: 0 20px 40px rgba(15, 23, 42, 0.3);
+      animation: popupScaleIn 0.18s ease-out;
+    }
+
+    .popup-title {
+      font-size: 14px;
+      color: #64748b;
+      margin-bottom: 8px;
+    }
+
+    .popup-value {
+      font-size: 24px;
+      font-weight: 700;
+      color: #16a34a;
+      margin-bottom: 16px;
+      word-break: break-word;
+    }
+
+    #popupCloseBtn {
+      background: #2563eb;
+      color: #ffffff;
+      padding-inline: 20px;
+      box-shadow: 0 6px 14px rgba(37, 99, 235, 0.35);
+    }
+
+    #popupCloseBtn:active {
+      transform: translateY(1px) scale(0.99);
+      box-shadow: 0 3px 8px rgba(37, 99, 235, 0.3);
+    }
+
+    @keyframes popupScaleIn {
+      from {
+        transform: scale(0.95);
+        opacity: 0;
+      }
+      to {
+        transform: scale(1);
+        opacity: 1;
+      }
+    }
   </style>
 </head>
 <body>
@@ -239,6 +305,14 @@
     <div class="error" id="errorText">請先輸入至少一個有效項目再抽獎。</div>
   </div>
 
+  <div id="popupOverlay" class="popup-overlay">
+    <div class="popup">
+      <div class="popup-title">抽到的是：</div>
+      <div id="popupValue" class="popup-value"></div>
+      <button id="popupCloseBtn" type="button">關閉</button>
+    </div>
+  </div>
+
   <script>
     const inputArea = document.getElementById('inputArea');
     const countLabel = document.getElementById('countLabel');
@@ -248,6 +322,9 @@
     const clearBtn = document.getElementById('clearBtn');
     const wheelCanvas = document.getElementById('wheelCanvas');
     const wheelCtx = wheelCanvas && wheelCanvas.getContext ? wheelCanvas.getContext('2d') : null;
+    const popupOverlay = document.getElementById('popupOverlay');
+    const popupValue = document.getElementById('popupValue');
+    const popupCloseBtn = document.getElementById('popupCloseBtn');
 
     let currentRotation = 0;
     let spinning = false;
@@ -270,6 +347,22 @@
         .map(t => t.trim())
         .filter(t => t.length > 0);
     }
+
+    function openPopup(text) {
+      popupValue.textContent = text;
+      popupOverlay.classList.add('visible');
+    }
+
+    function closePopup() {
+      popupOverlay.classList.remove('visible');
+    }
+
+    popupCloseBtn.addEventListener('click', closePopup);
+    popupOverlay.addEventListener('click', (event) => {
+      if (event.target === popupOverlay) {
+        closePopup();
+      }
+    });
 
     function drawWheel(items, rotation = currentRotation) {
       if (!wheelCtx) return;
@@ -399,12 +492,15 @@
 
           // 計算指針所指向的扇形
           const segmentAngle = (Math.PI * 2) / items.length;
-          const pointerLocalAngle = currentRotation; // 上方指針轉回圓盤座標
+          // 將固定在上方的指針轉換成圓盤自身座標（需反向扣掉旋轉角度）
+          const pointerLocalAngle = -currentRotation;
           let normalized = pointerLocalAngle % (Math.PI * 2);
           if (normalized < 0) normalized += Math.PI * 2;
           const index = Math.floor(normalized / segmentAngle);
+          const selected = items[index];
 
-          resultText.textContent = items[index];
+          resultText.textContent = selected;
+          openPopup(selected);
           spinning = false;
           drawBtn.disabled = false;
           drawBtn.textContent = '開始抽獎';
